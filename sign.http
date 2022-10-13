@@ -1,0 +1,361 @@
+###
+# Auth
+POST http://localhost:9080/casp/api/v1.0/mng/auth/token
+Accept: application/json
+Content-Type: application/json
+
+{
+  "grant_type": "password",
+  "username": "so",
+  "password": "Unbound4!"
+}
+
+> {% client.global.set("authToken", response.body.access_token) %}
+###
+
+# List accounts
+###
+
+# curl -X GET https://casp-server/casp/api/v1.0/mng/accounts
+#  -H 'Accept: application/json'
+#  -H 'Authorization: Bearer API_KEY'
+GET http://localhost:9080/casp/api/v1.0/mng/accounts
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+> {% client.global.set("accountId", response.body.items[0].id) %}
+###
+
+GET http://localhost:9080/casp/api/v1.0/mng/accounts/{{accountId}}/vaults
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+> {% client.global.set("vaultId", response.body.items[0].id) %}
+###
+
+# create vault sub-account
+POST http://localhost:9080/casp/api/v1.0/mng/vaults/{{vaultId}}/coins/0/accounts
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "accountName": "eth-account-1"
+}
+
+###
+GET http://localhost:9080/casp/api/v1.0/mng/vaults/{{vaultId}}/coins/0/accounts/1/chains/all/addresses
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+
+> {% client.global.set("pubKey", response.body.items[0]) %}
+
+###
+GET http://localhost:9080/casp/api/v1.0/mng/vaults/{{vaultId}}/coins/0/accounts/1/chains/all/addresses?encoding=plain
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+
+###
+POST http://localhost:9080/casp/api/v1.0/mng/vaults/{{vaultId}}/sign
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "dataToSign": [ "CE9A24650E066638A8B9898DC32F14CBD62EB8EACAC5C94C34C2F3568EF55E48" ],
+  "publicKeys": [ "{{pubKey}}" ],
+  "description": "first ethereum transaction"
+}
+
+
+> {% client.global.set("operationId", response.body.operationID) %}
+
+
+###
+
+GET http://localhost:9080/casp/api/v1.0/mng/operations/sign/{{operationId}}
+Accept: application/json
+Authorization: Bearer {{authToken}}
+
+###
+
+# Post signed transaction
+POST http://localhost:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+  "jsonrpc":"2.0",
+  "method":"eth_sendRawTransaction",
+  "params": ["0x02F86F8205398082162E842F925E88830186A0941F619B3D54250C56B316B37F1A7A92B8C6A2180D7B84FFEFFEEFC080A0BCA1830EED1A084D6AB9E567E24A25A47CA830892DFB1DC52532BF34D069B154A0610786212BFC9CFAF4E6A1FEB8E6E743D5068493B7D9EB55F7DB2FB3DB8DFBB3"],
+  "id":1
+}
+
+###
+### Set New Block Filter
+# curl --location --request POST 'http://localhost:8545'
+#--data-raw '{
+#    "jsonrpc": "2.0",
+#    "method": "eth_newBlockFilter",
+#    "params": [],
+#    "id": 1
+#}'
+POST http://localhost:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+    "jsonrpc": "2.0",
+    "method": "eth_newBlockFilter",
+    "params": [],
+    "id": 1
+}
+
+> {% client.global.set("filterId", response.body.result) %}
+###
+### Read New Blocks
+# curl --location --request POST 'http://localhost:8545'
+#--data-raw '{
+#    "jsonrpc": "2.0",
+#    "method": "eth_getFilterChanges",
+#    "params": [
+#        "0xf8bf5598d9e04fbe84523d42640b9b0e"
+#    ],
+#    "id": 1
+#}'
+POST http://localhost:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+    "jsonrpc": "2.0",
+    "method": "eth_getFilterChanges",
+    "params": [
+        "{{filterId}}"
+    ],
+    "id": 1
+}
+
+###
+### Read Block Tx Count
+# curl --location --request POST 'http://localhost:8545'
+#--data-raw '{
+#    "jsonrpc": "2.0",
+#    "method": "eth_getBlockTransactionCountByHash",
+#    "params": [
+#        "0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"
+#    ],
+#    "id": 1
+#}'
+POST http://localhost:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+    "jsonrpc": "2.0",
+    "method": "eth_getBlockTransactionCountByHash",
+    "params": [
+        "0xa8ccb21c2c58a79a249a69f3c607d13d758b411935e0cdc615ea388e2402f8f6",
+        "0xb97c4c9dbed04054b2924d854e730de72735dc695a96cc871b70de454444dd41"
+    ],
+    "id": 1
+}
+
+###
+### Read Block TxCount by Number
+# curl --location --request POST 'http://localhost:8545'
+#--data-raw '{
+#    "jsonrpc": "2.0",
+#    "method": "eth_getBlockTransactionCountByNumber",
+#    "params": [
+#        "0xe8"
+#    ],
+#    "id": 1
+#}'
+POST http://localhost:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+    "jsonrpc": "2.0",
+    "method": "eth_getBlockTransactionCountByNumber",
+    "params": [
+      "8"
+    ],
+    "id": 1
+}
+
+
+###
+### Read block by number
+# curl --location --request POST 'http://localhost:8545'
+#--data-raw '{
+#    "jsonrpc": "2.0",
+#    "method": "eth_getBlockByNumber",
+#    "params": [
+#        "0xF",
+#        true
+#    ],
+#    "id": 1
+#}'
+POST http://localhost:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+    "jsonrpc": "2.0",
+    "method": "eth_getBlockByNumber",
+    "params": [
+        "0x8",
+        true
+    ],
+    "id": 1
+}
+
+> {% client.global.set("blockHash", response.body.result) %}
+###
+
+###
+### Read transaction
+# curl --location --request POST 'http://localhost:8545'
+#--data-raw '{
+#    "jsonrpc": "2.0",
+#    "method": "eth_getTransactionByBlockHashAndIndex",
+#    "params": [
+#        "0xa52be92809541220ee0aaaede6047d9a6c5d0cd96a517c854d944ee70a0ebb44",
+#        "0x1"
+#    ],
+#    "id": 1
+#}'
+POST http://localhost:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+    "jsonrpc": "2.0",
+    "method": "eth_getTransactionByBlockHashAndIndex",
+    "params": [
+        "0xa52be92809541220ee0aaaede6047d9a6c5d0cd96a517c854d944ee70a0ebb44",
+        "0x1"
+    ],
+    "id": 1
+}
+
+###
+
+
+
+
+
+
+###
+### Set New Pending Transaction Filter
+# curl --location --request POST 'http://localhost:8545'
+#--data-raw '{
+#    "jsonrpc": "2.0",
+#    "method": "eth_newPendingTransactionFilter",
+#    "params": [],
+#    "id": 1
+#}'
+POST http://localhost:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+    "jsonrpc": "2.0",
+    "method": "eth_newPendingTransactionFilter",
+    "params": [],
+    "id": 1
+}
+
+###
+
+
+###
+# curl -X POST --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":51}' http://127.0.0.1:8545
+POST http://127.0.0.1:8545
+Content-Type: application/x-www-form-urlencoded
+
+{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":51}
+
+###
+
+
+###
+# curl -X POST --data '{"jsonrpc":"2.0","method":"eth_accounts","params":[],"id":53}' http://127.0.0.1:8545
+POST http://127.0.0.1:8545
+Content-Type: application/x-www-form-urlencoded
+
+{"jsonrpc":"2.0","method":"eth_accounts","params":[],"id":53}
+
+###
+
+### Estimate GAS
+#         "to":"0x44Aa93095D6749A706051658B970b941c72c1D53",
+# curl -X POST --data '{"jsonrpc":"2.0","method":"eth_estimateGas","params":[{"from":"0xFE3B557E8Fb62b89F4916B721be55cEb828dBd73","to":"0x44Aa93095D6749A706051658B970b941c72c1D53","value":"0x1"}],"id":53}' http://127.0.0.1:8545
+POST http://127.0.0.1:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+   "jsonrpc":"2.0",
+   "method":"eth_estimateGas",
+   "params":[
+      {
+         "from": "0x1f619b3d54250c56b316b37f1a7a92b8c6a2180d",
+         "to":"0x1f619b3d54250c56b316b37f1a7a92b8c6a2180d",
+         "value":"0x1"
+      }
+   ],
+   "id":53
+}
+
+###
+### Get GAS price
+#
+# curl -X POST --data '{"jsonrpc":"2.0","method":"eth_gasPrice","params":[],"id":53}' http://127.0.0.1:8545
+POST http://127.0.0.1:8545
+Content-Type: application/x-www-form-urlencoded
+
+{"jsonrpc":"2.0","method":"eth_gasPrice","params":[],"id":53}
+
+###
+
+
+
+###
+# curl -X POST --data '{"jsonrpc":"2.0","method":"admin_peers","params":[],"id":1}' http://127.0.0.1:8545
+POST http://127.0.0.1:8545
+Content-Type: application/x-www-form-urlencoded
+
+{"jsonrpc":"2.0","method":"admin_peers","params":[],"id":1}
+
+###
+###
+# curl -X POST --data '{"jsonrpc":"2.0","method":"admin_addPeer","params":["enode://f59c0ab603377b6ec88b89d5bb41b98fc385030ab1e4b03752db6f7dab364559d92c757c13116ae6408d2d33f0138e7812eb8b696b2a22fe3332c4b5127b22a3@127.0.0.1:30304"],"id":1}' http://127.0.0.1:8545
+POST http://127.0.0.1:8545
+Content-Type: application/x-www-form-urlencoded
+
+{
+   "jsonrpc":"2.0",
+   "method":"admin_addPeer",
+   "params":[
+      "enode://1c6d296749018e4e4a78baf9a8a3048aae2557c3f2f11a340570d57e71071e2e9816a5f5d9215a333d12b432a81ff5017520b09461c4a102e72c7a1a2d9d7d0f@18.222.108.145:30303"
+   ],
+   "id":1
+}
+
+###
+
+###
+# curl -X POST --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' localhost:8545
+POST localhost:8546
+Content-Type: application/x-www-form-urlencoded
+
+{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}
+
+###
+
+
+
+
+
+
+
+###
+
